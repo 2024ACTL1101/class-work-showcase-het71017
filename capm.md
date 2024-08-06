@@ -81,7 +81,13 @@ $$
 $$
 
 ```r
-#fill the code
+# Calculate daily returns for AMD and the S&P 500
+df <- df %>%
+ mutate(
+ AMD_Return = (AMD / lag(AMD) - 1), #Calculates the daily AMD return
+ GSPC_Return = (GSPC / lag(GSPC)-1) #Calculates the daily S&P 500 return
+ )
+df <- na.omit(df) #Omits the NA values
 ```
 
 - **Calculate Risk-Free Rate**: Calculate the daily risk-free rate by conversion of annual risk-free Rate. This conversion accounts for the compounding effect over the days of the year and is calculated using the formula:
@@ -91,21 +97,52 @@ $$
 $$
 
 ```r
-#fill the code
+# Calculate daily risk-free rate
+df <- df %>%
+ mutate(RF_Daily = (1 + RF / 100)^(1/360) - 1) #Calculates the Daily Risk
+Free Rate
 ```
 
 
 - **Calculate Excess Returns**: Compute the excess returns for AMD and the S&P 500 by subtracting the daily risk-free rate from their respective returns.
 
 ```r
-#fill the code
+# Calculate excess returns
+df <- df %>%
+ mutate(
+ AMD_Excess_Return = AMD_Return - RF_Daily, #Calculates the Excess Returns
+for AMD
+ GSPC_Excess_Return = GSPC_Return - RF_Daily #Calculates the Excess
+Returns for S&P 500
+ )
 ```
 
 
 - **Perform Regression Analysis**: Using linear regression, we estimate the beta (\(\beta\)) of AMD relative to the S&P 500. Here, the dependent variable is the excess return of AMD, and the independent variable is the excess return of the S&P 500. Beta measures the sensitivity of the stock's returns to fluctuations in the market.
 
 ```r
-#fill the code
+# Perform regression analysis
+capm_model <- lm(AMD_Excess_Return ~ GSPC_Excess_Return, data = df)
+summary(capm_model)
+##
+## Call:
+## lm(formula = AMD_Excess_Return ~ GSPC_Excess_Return, data = df)
+##
+## Residuals:
+## Min 1Q Median 3Q Max
+## -0.095781 -0.014735 -0.001152 0.012276 0.173632
+##
+## Coefficients:
+## Estimate Std. Error t value Pr(>|t|)
+## (Intercept) 0.0011041 0.0007243 1.524 0.128
+## GSPC_Excess_Return 1.5699987 0.0540654 29.039 <2e-16 ***
+## ---
+## Signif. codes: 0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+##
+## Residual standard error: 0.02567 on 1256 degrees of freedom
+## Multiple R-squared: 0.4017, Adjusted R-squared: 0.4012
+## F-statistic: 843.3 on 1 and 1256 DF, p-value: < 2.2e-16
+
 ```
 
 
@@ -120,7 +157,18 @@ What is your \(\beta\)? Is AMD more volatile or less volatile than the market?
 Plot the scatter plot of AMD vs. S&P 500 excess returns and add the CAPM regression line.
 
 ```r
-#fill the code
+# Load necessary library for plotting
+# Plotting the CAPM line
+library(ggplot2)
+ggplot(df, aes(x = GSPC_Excess_Return, y = AMD_Excess_Return)) +
+ geom_point(alpha = 0.5) +
+ geom_smooth(method = "lm", se = FALSE, col = "red") +
+ labs(
+ title = "CAPM Analysis: AMD vs S&P 500",
+ x = "S&P 500 Excess Return",
+ y = "AMD Excess Return"
+ )
+## `geom_smooth()` using formula = 'y ~ x'
 ```
 
 ### Step 3: Predictions Interval
@@ -131,5 +179,34 @@ Suppose the current risk-free rate is 5.0%, and the annual expected return for t
 **Answer:**
 
 ```r
-#fill the code
+# Given values
+current_rf_rate <- 0.05
+expected_market_return <- 0.133
+# Extract beta and residual standard error from the model
+beta <- coef(capm_model)["GSPC_Excess_Return"]
+residuals <- capm_model$residuals
+se <- sd(residuals)
+# Daily to annual conversion
+annual_se <- se * sqrt(252)
+# Calculates the Expected Annual Return
+expected_amd_return <- current_rf_rate + beta * (expected_market_return -
+current_rf_rate)
+# Calculated the 90% prediction interval
+z_score <- qnorm(0.95)
+lower_bound <- expected_amd_return - z_score * annual_se
+upper_bound <- expected_amd_return + z_score * annual_se
+# Print results
+cat("Expected AMD Annual Return:", expected_amd_return * 100, "%\n")
+## Expected AMD Annual Return: 18.03099 %
+cat("90% Prediction Interval: [", lower_bound * 100, "%, ", upper_bound *
+100, "%]\n")
+## 90% Prediction Interval: [ -48.9696 %, 85.03158 %]
+print("Therefore, the 90% prediction interval for AMD's annual expected
+return is approximately [-49%,85%], reflecting the range within which we
+expect AMD's returns to fall with 90% confidence, given the market's expected
+return and the beta value of 1.57.")
+## [1] "Therefore, the 90% prediction interval for AMD's annual expected
+return is approximately [-49%,85%], reflecting the range within which we
+expect AMD's returns to fall with 90% confidence, given the market's expected
+return and the beta value of 1.57."
 ```
